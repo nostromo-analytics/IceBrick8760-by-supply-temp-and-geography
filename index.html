@@ -20,6 +20,7 @@
   --ice:#1d4ed8; --ice-fill:rgba(29,78,216,.40);
   --ice2:#0284c7; --ice2-fill:rgba(2,132,199,.32);
   --amb:#b9760f; --ink:#111111; --warn:#b45309; --good:#0d9488;
+  --pink:#db2777; --pink-fill:rgba(219,39,119,.50);
   --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
   --disp:'Space Grotesk',system-ui,sans-serif;
   --sans:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
@@ -32,7 +33,7 @@
   --chiller:#ef6b6b; --chiller-fill:rgba(239,107,107,.24);
   --ice:#3b82f6; --ice-fill:rgba(59,130,246,.42);
   --ice2:#7dd3fc; --ice2-fill:rgba(125,211,252,.30);
-  --amb:#f5a623; --ink:#e8eef4; --warn:#f59e0b; --good:#2dd4bf; color-scheme:dark}}
+  --amb:#f5a623; --ink:#e8eef4; --warn:#f59e0b; --good:#2dd4bf; --pink:#f472b6; --pink-fill:rgba(244,114,182,.50); color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0d1217; --panel:#151d25; --panel2:#1b2630; --line:#293744;
   --text:#e8eef4; --muted:#8a9aa8; --faint:#5d6e7c;
@@ -41,7 +42,7 @@
   --chiller:#ef6b6b; --chiller-fill:rgba(239,107,107,.24);
   --ice:#3b82f6; --ice-fill:rgba(59,130,246,.42);
   --ice2:#7dd3fc; --ice2-fill:rgba(125,211,252,.30);
-  --amb:#f5a623; --ink:#e8eef4; --warn:#f59e0b; --good:#2dd4bf; color-scheme:dark}
+  --amb:#f5a623; --ink:#e8eef4; --warn:#f59e0b; --good:#2dd4bf; --pink:#f472b6; --pink-fill:rgba(244,114,182,.50); color-scheme:dark}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased}
 .wrap{max-width:1120px;margin:0 auto;padding-block:22px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
@@ -190,6 +191,11 @@ table.tb td.b{color:var(--water);font-weight:600}
 .rttrack{display:flex;height:26px;background:var(--panel2);border-radius:6px;overflow:hidden}
 .rtseg{height:100%;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11.5px;color:#fff;white-space:nowrap;overflow:hidden;transition:width .2s}
 .rtseg.ch{background:var(--chiller)} .rtseg.ib{background:var(--ice)}
+.codebar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+#runcode{font-family:var(--mono);font-size:13px;color:var(--water);background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:5px 10px;user-select:all;word-break:break-all}
+.codein{padding:14px 18px}
+.codeinrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+.codeinrow .txtin{flex:1;min-width:0;font-family:var(--mono);font-size:13px}
 @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
 @media(max-width:600px){.lock{font-size:23px}h1{font-size:24px}.cbox{height:280px}}
 </style>
@@ -212,6 +218,15 @@ table.tb td.b{color:var(--water);font-weight:600}
     split the heat between your <b>dry coolers</b> and your <b>chillers</b> hour by hour, and show the mechanical cooling and
     electrical capacity you have to hold in reserve for it. Then we put an <b>IceBrick</b> thermal store in the loop, charging
     at night and discharging through the day, and show what that reserve becomes.</p>
+
+  <div class="card codein">
+    <label for="code_in" class="ctag">Have a run code?</label>
+    <div class="codeinrow">
+      <input type="text" id="code_in" class="txtin" spellcheck="false" autocomplete="off" placeholder="IBDD-v1-dfw-RS40-CDU5-IT100-N20-S73073">
+      <button class="btn pri" id="code_go">Run this code</button>
+    </div>
+    <div class="ovlhint" id="code_err"></div>
+  </div>
 
   <!-- Q1 -->
   <div class="card" id="q1">
@@ -263,6 +278,12 @@ table.tb td.b{color:var(--water);font-weight:600}
           <span class="ctag">Design day from the last</span>
           <div class="seg" id="nsel"><button data-n="10">10 yrs</button><button data-n="20" class="on">20 yrs</button><button data-n="50">50 yrs</button></div>
         </div>
+      </div>
+      <div class="codebar">
+        <span class="ctag">Run code</span>
+        <code id="runcode" title="Every input behind this page">—</code>
+        <button class="btn sm" id="code_copy">Copy</button>
+        <span class="ctag" id="code_msg">Paste it into the box at the top of the page to run exactly this again.</span>
       </div>
     </div>
 
@@ -388,7 +409,7 @@ table.tb td.b{color:var(--water);font-weight:600}
         <div class="cbox"><canvas id="cX"></canvas></div>
         <div class="legend" id="lgX"></div>
         <div class="rng" id="rgX"></div>
-        <p class="note">Zoom either of these two charts, by dragging or with the range slider, and the other follows, so you always compare the same hours.</p>
+        <p class="note"><span id="x_note"></span> Zoom either of these two charts, by dragging or with the range slider, and the other follows, so you always compare the same hours.</p>
       </div>
     </div>
 
@@ -526,11 +547,20 @@ function withIce(B,Sreq){
   if(E>1e-6){ let lo=0,hi=L; for(let k=0;k<40;k++){const m=(lo+hi)/2; if(sol.chgAt(m)<E)lo=m; else hi=m;}
     sol.win.forEach((i,j)=>{const c=Math.max(0,(hi-hrs[i].el))*sol.iceCop[j]; chg[i]=c; chgEl[i]=c/sol.iceCop[j]; if(c>chgPk)chgPk=c;}); }
   const el=hrs.map((h,i)=>u[i]>1e-9?sol.elAfter(h,u[i])-ICE_PUMP*u[i]:h.el);
+  // THE THREE PIECES OF A DISCHARGE HOUR (same split as the 8760 simulator; they add up exactly to the saving):
+  //  disp = the tons handed to IceBrick, priced at the chillers' ORIGINAL work point (today's kW/RT that hour)
+  //  wp   = what the remaining tons gain by sliding down the YORK part-load curve (the plant now carries less)
+  //  lift = what they gain from post-cooling: leaving water up to 5 K warmer, so a shorter lift
+  //  disp + wp + lift = chillers today - chillers with IceBrick; the IceBrick pumps come off the displacement
+  const disp=hrs.map(()=>0), wp=hrs.map(()=>0), lift=hrs.map(()=>0);
+  hrs.forEach((h,i)=>{const uu=u[i], t=h.mech; if(uu<=1e-9||t<=1e-9)return; const r=Math.max(0,t-uu);
+    const eR=r>1e-9?r/cop(h.T,B.FWS,Math.min(1,r/plantRT)):0;            // residual at the original leaving water
+    disp[i]=h.el*uu/t; wp[i]=h.el*r/t-eR; lift[i]=eR-el[i];});
   const pump=u.map(v=>ICE_PUMP*v);
   let resv=0,resvH=24, cap=0; const span=sol.win.concat([...Array(24).keys()].map(k=>24+k));
   span.forEach(i=>{const t=el[i]+chgEl[i]+pump[i]; if(t>resv){resv=t;resvH=i;} cap=Math.max(cap,hrs[i].mech-u[i]);});
   let disPk=0,hrsDis=0; u.forEach(v=>{if(v>1e-9){hrsDis++; if(v>disPk)disPk=v;}});
-  return {ok:S>1e-6,S,Sreq:Sreq==null?S:Sreq,Smax,L,Lstar,u,chg,chgEl,el,pump,resv,resvH,cap,plant:cap,chgPk,chgNP:chgPk,win:sol.win,disPk,hrsDis,first:sol.first,last:sol.last};
+  return {disp,wp,lift,ok:S>1e-6,S,Sreq:Sreq==null?S:Sreq,Smax,L,Lstar,u,chg,chgEl,el,pump,resv,resvH,cap,plant:cap,chgPk,chgNP:chgPk,win:sol.win,disPk,hrsDis,first:sol.first,last:sol.last};
 }
 // size sweep: reserve against store size, 0 .. 1.5x the size that reaches the floor
 function sweep(B){
@@ -567,6 +597,7 @@ function annualBase(B,hub,ITkW){
 function annualIce(B,A,R){
   const n=A.n, Q=B.Q, FWS=B.FWS, plantRT=iceTop(B).plantRT, S=R.S, L0=R.L;
   const cool=Float64Array.from(A.el), chgEl=new Float64Array(n), chgRT=new Float64Array(n), disRT=new Float64Array(n);
+  const dispA=new Float64Array(n), wpA=new Float64Array(n), lfA=new Float64Array(n);   // same three-piece split as the design day
   let raised=0, cyc=0;
   for(let d=0;d<365;d++){
     const hrs=[]; for(let k=0;k<48;k++){let i=(d-1)*24+k; if(i<0)i+=n; hrs.push({T:A.T[i],mech:A.mech[i],el:A.el[i]});}
@@ -579,11 +610,13 @@ function annualIce(B,A,R){
     const sol=iceSolve(Bd,L,plantRT); if(sol.need<=1e-6)continue; cyc++;
     const E=sol.need*CHG_LOSS; let lo=0,hi=L; for(let k=0;k<40;k++){const m=(lo+hi)/2; if(sol.chgAt(m)<E)lo=m; else hi=m;}
     sol.win.forEach((k,j)=>{const c=Math.max(0,hi-hrs[k].el)*sol.iceCop[j]; const i=((d-1)*24+k+n)%n; chgRT[i]+=c/TON_KW; chgEl[i]+=c/sol.iceCop[j];});
-    for(let k=24;k<48;k++){const u=sol.u[k]; if(u<=1e-9)continue; const i=d*24+k-24; cool[i]=sol.elAfter(hrs[k],u); disRT[i]=u/TON_KW;}
+    for(let k=24;k<48;k++){const u=sol.u[k]; if(u<=1e-9)continue; const i=d*24+k-24; cool[i]=sol.elAfter(hrs[k],u); disRT[i]=u/TON_KW;
+      const h=hrs[k], t=h.mech, r=Math.max(0,t-u), eR=r>1e-9?r/cop(h.T,FWS,Math.min(1,r/plantRT)):0, eC=cool[i]-ICE_PUMP*u;
+      if(t>1e-9){dispA[i]=h.el*u/t; wpA[i]=h.el*r/t-eR; lfA[i]=eR-eC;}}
   }
   const fac=new Float64Array(n); let pk=0,pkI=0,E=0;
   for(let i=0;i<n;i++){fac[i]=A.fix+cool[i]+chgEl[i]; E+=fac[i]; if(fac[i]>pk){pk=fac[i];pkI=i;}}
-  return {fac,cool,chgEl,chgRT,disRT,pk,pkI,E,raised,cyc};
+  return {fac,cool,chgEl,chgRT,disRT,dispA,wpA,lfA,pk,pkI,E,raised,cyc};
 }
 // ---- 2025 sizing: the lowest flat line 2025 itself can hold with a store of S kWh-th ----
 function yearDays(B,A){ if(A._days)return A._days; const n=A.n, out=[];
@@ -735,7 +768,7 @@ if(window.Chart)Chart.register(bandPlugin);
 const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 function pal(){return {grid:css('--line'),tick:css('--muted'),text:css('--text'),panel:css('--panel'),
   dry:css('--dry'),dryF:css('--dry-fill'),ch:css('--chiller'),chF:css('--chiller-fill'),
-  ice:css('--ice'),iceF:css('--ice-fill'),ice2:css('--ice2'),ice2F:css('--ice2-fill'),amb:css('--amb'),ink:css('--ink'),water:css('--water'),faint:css('--faint')};}
+  ice:css('--ice'),iceF:css('--ice-fill'),wpB:css('--pink'),wpF:css('--pink-fill'),ice2:css('--ice2'),ice2F:css('--ice2-fill'),amb:css('--amb'),ink:css('--ink'),water:css('--water'),faint:css('--faint')};}
 function baseOpts(key,yTitle,y2Title){const c=pal();
   const sync=({chart})=>{chart.$rng&&chart.$rng.set(chart.scales.x.min,chart.scales.x.max); chart.$onRange&&chart.$onRange(chart.scales.x.min,chart.scales.x.max);};
   return {responsive:true,maintainAspectRatio:false,animation:false,interaction:{mode:'index',intersect:false},
@@ -778,12 +811,12 @@ function stack(list){const acc=list[0].data.map(()=>0);return list.map((d,k)=>{c
 const line=(label,data,col,o={})=>Object.assign({type:'line',label,data,borderColor:col,backgroundColor:'transparent',borderWidth:2,pointRadius:0,fill:false,tension:.25,stack:'l',yAxisID:'y'},o);
 
 // ---------- run ----------
-function run(){
+function run(keep){
   if(!S.hub)return;
   BLK=pickDay(S.hub,S.N);
   const FWS=S.RS-S.cdu, Q=S.IT*1000;
   B=baseline(BLK,FWS,Q); SW=sweep(B); AY=annualBase(B,S.hub,S.IT*1000); YS=null; const tok=++yrTok;
-  if(!S.touched){S.stor=SW.best.S;}   // start at the recommended size
+  if(!S.touched){S.stor=SW.best.S;}   // (a pasted code with a size sets touched, so it survives here)   // start at the recommended size
   renderBase(); renderIce(false);
   // 2025 sizing runs after the design day is on screen
   setTimeout(()=>{ if(tok!==yrTok)return; YS=yearSweep(B,AY); renderIce(false); },30);
@@ -854,6 +887,8 @@ function renderBase(){
 function withTT(o,fmt){o.plugins.tooltip.callbacks={label:ctx=>ctx.dataset.label+': '+fmt(ctx.dataset,ctx.dataset.vals?ctx.dataset.vals[ctx.dataIndex]:ctx.raw,ctx)};return o;}
 
 function renderIce(fromShare){
+  if(!B)return;   // nothing to draw before the first run
+  setTimeout(showCode,0);
   R=withIce(B,S.stor);
   const FWS=B.FWS, base=B.elPk, h=HUBS[S.hub], opt=SW.best, c=pal();
   const recT=RT(opt.S), maxT=Math.max(1000,RT(SW.Smax)*1.5,YS?RT(YS.Smax)*1.2:0), step=maxT>60000?500:maxT>15000?100:50;
@@ -920,16 +955,18 @@ function renderIce(fromShare){
     area('Chillers + IceBrick pumps · with IceBrick',idx.map(i=>(R.el[i]+R.pump[i])/1000),c.faint,'rgba(127,127,127,.20)',{fill:'origin',borderWidth:1,order:5}),
     // 1 total with IceBrick: base + the ice plant while it charges (blue fill down to the base)
     area('Total with IceBrick',idx.map(i=>tot(i)/1000),c.ink,c.iceF,{fill:{target:0,above:c.iceF,below:'transparent'},borderWidth:2.6,order:2}),
-    // 2 today's chiller draw; the teal fill down to the total is the electricity IceBrick's discharge avoids
-    area('Chillers · today',idx.map(i=>H[i].el/1000),c.ch,c.water,{fill:{target:1,above:'rgba(13,148,136,.32)',below:'transparent'},borderWidth:2.4,order:1}),
+    // 2 pink: the efficiency the remaining chillers gain (better work point + shorter lift), laid just above the total
+    line('Efficiency gained',idx.map(i=>(tot(i)+(isDis(i)?Math.max(0,R.wp[i]+R.lift[i]):0))/1000),'transparent',{fill:{target:1,above:c.wpF,below:'transparent'},borderWidth:0,tt:false,order:3}),
+    // 3 today's chiller draw; the teal fill down to the pink is the duty IceBrick displaced, net of its own pumps
+    area('Chillers · today',idx.map(i=>H[i].el/1000),c.ch,c.water,{fill:{target:2,above:'rgba(13,148,136,.32)',below:'transparent'},borderWidth:2.4,order:1}),
     line('Reserve · today',idx.map(()=>base/1000),c.ch,{borderDash:[7,4],borderWidth:1.5,tension:0,order:0}),
     line('Reserve · with IceBrick',idx.map(()=>R.ok?R.resv/1000:null),c.ink,{borderDash:[7,4],borderWidth:1.5,tension:0,order:0}),
   ];
   const bands=[]; {let cur=null; idx.forEach((i,k)=>{const t=isDis(i)?'dis':isChg(i)?'chg':null;
     if(t!==(cur&&cur.t)){ if(cur)bands.push(cur); cur=t?{t,a:k,b:k}:null; } else if(cur) cur.b=k; }); if(cur)bands.push(cur);}
-  let disRT=0,disPk=0,savedMWh=0,chgMWh=0,chgRT=0; idx.forEach(i=>{if(isDis(i)){disRT+=R.u[i];savedMWh+=H[i].el-R.el[i]-R.pump[i];} if(isChg(i)){chgMWh+=R.chgEl[i];chgRT+=R.chg[i];}});
+  let disRT=0,disPk=0,savedMWh=0,chgMWh=0,chgRT=0,wpMWh=0,lfMWh=0; idx.forEach(i=>{if(isDis(i)){disRT+=R.u[i];savedMWh+=H[i].el-R.el[i]-R.pump[i];wpMWh+=R.wp[i];lfMWh+=R.lift[i];} if(isChg(i)){chgMWh+=R.chgEl[i];chgRT+=R.chg[i];}});
   bands.forEach(b=>{b.lab=b.t==='dis'?'IceBrick discharging':'IceBrick charging (ice plant on)';
-    b.sub=b.t==='dis'?`${f0(RT(disRT))} ton-h out · saves ${f1(savedMWh/1000)} MWh · ${f2(kwrt(savedMWh,disRT))} kW/RT`
+    b.sub=b.t==='dis'?`${f0(RT(disRT))} ton-h out · saves ${f1(savedMWh/1000)} MWh (${f1((wpMWh+lfMWh)/1000)} pink) · ${f2(kwrt(savedMWh,disRT))} kW/RT`
                       :`${f0(RT(chgRT))} ton-h in · costs ${f1(chgMWh/1000)} MWh · ${f2(kwrt(chgMWh,chgRT))} kW/RT`;});
   const dsD=[
     ...stack([area('Dry coolers',idx.map(i=>thv(H[i].dry)),c.dry,c.dryF,{stack:'th',order:4,fill:'origin'}),
@@ -957,14 +994,15 @@ function renderIce(fromShare){
         if(ds.label==='Total with IceBrick')return 'With IceBrick: '+f2(ctx.raw)+' MW';
         return '  chillers '+conv(Math.max(0,H[i].mech-R.u[i]),R.el[i]);},
       afterBody:its=>{if(!its.length)return []; const i=idx[its[0].dataIndex], out=[];
-        if(isDis(i))out.push('IceBrick discharging '+f0(RT(R.u[i]))+' RT → saves '+f2((H[i].el-R.el[i]-R.pump[i])/1000)+' MW');
+        if(isDis(i)){out.push('IceBrick discharging '+f0(RT(R.u[i]))+' RT → saves '+f2((H[i].el-R.el[i]-R.pump[i])/1000)+' MW');
+          out.push('  displaced '+f2((R.disp[i]-R.pump[i])/1000)+' MW (net of pumps) · work point '+f2(R.wp[i]/1000)+' MW · lift '+f2(R.lift[i]/1000)+' MW');}
         if(isChg(i))out.push('Ice plant charging '+conv(R.chg[i],R.chgEl[i]));
         return out;}};
     oC.plugins.tooltip.filter=it=>it.raw!=null&&it.dataset.yAxisID!=='y2'||it.chart.isDatasetVisible(it.datasetIndex);
-    const ch=mkChart('C','line',labs,dsC,oC,[{lb:'Chillers · today',col:c.ch,i:2,kind:'line'},{lb:'Total with IceBrick',col:c.ink,i:1,kind:'line'},
-      {lb:'Saved while IceBrick discharges',col:'rgba(13,148,136,.55)',i:2},{lb:'Ice plant charging',col:c.iceF,i:1},
-      {lb:'Chillers + pumps with IceBrick',col:'rgba(127,127,127,.4)',i:0},{lb:'Reserve · today',col:c.ch,i:3,kind:'dash'},
-      {lb:'Reserve · with IceBrick',col:c.ink,i:4,kind:'dash'}]);
+    const ch=mkChart('C','line',labs,dsC,oC,[{lb:'Chillers · today',col:c.ch,i:3,kind:'line'},{lb:'Total with IceBrick',col:c.ink,i:1,kind:'line'},
+      {lb:'Displaced by IceBrick',col:'rgba(13,148,136,.55)',i:3},{lb:'Efficiency gained · work point + lift',col:c.wpB,i:2},{lb:'Ice plant charging',col:c.iceF,i:1},
+      {lb:'Chillers + pumps with IceBrick',col:'rgba(127,127,127,.4)',i:0},{lb:'Reserve · today',col:c.ch,i:4,kind:'dash'},
+      {lb:'Reserve · with IceBrick',col:c.ink,i:5,kind:'dash'}]);
     if(ch){ch.$bands=bands; ch.update('none');}
     const oD=withTT(baseOpts('D',thU()),thFmt);
     oD.scales.y.beginAtZero=false;
@@ -974,8 +1012,11 @@ function renderIce(fromShare){
   $('c_tag').textContent=`from ${lab(s0)} the day before through the design day · "d−1" marks the evening before · hover any hour for tons and megawatts`;
   $('c_read').innerHTML=R.ok?`<b>Reading the chart.</b> The <b style="color:var(--chiller)">red line</b> is what your chillers draw today. The
     <b>black line</b> is the total with IceBrick: chillers, IceBrick pumps and the ice plant. In the <b>shaded discharge hours</b> IceBrick carries up to
-    ${thMain(R.disPk)} of the chiller duty, so the black line drops below the red one; the <b style="color:var(--water)">teal area</b> between them is
-    the electricity avoided, ${f1(savedMWh/1000)} MWh over the day. In the <b>shaded charging hours</b> the ice plant refreezes the store, so the black line
+    ${thMain(R.disPk)} of the chiller duty, so the black line drops below the red one. The gap between them, ${f1(savedMWh/1000)} MWh over the day, has
+    two parts. The <b style="color:var(--water)">teal area</b> is the duty IceBrick displaced, priced at the chillers' kW/RT before anything moved, less
+    IceBrick's own pumps (${f1((savedMWh-wpMWh-lfMWh)/1000)} MWh). The <b style="color:var(--pink)">pink area</b> is what the chillers that stay on gain
+    on top of that (${f1((wpMWh+lfMWh)/1000)} MWh): ${f1(wpMWh/1000)} MWh because they run at a lighter, more efficient point on the YORK part-load curve, and
+    ${f1(lfMWh/1000)} MWh because IceBrick post-cools in series, so they send warmer water and lift less. In the <b>shaded charging hours</b> the ice plant refreezes the store, so the black line
     rises above the red one; the <b style="color:var(--ice)">blue area</b> is the ice plant, ${f1(chgMWh/1000)} MWh. The electrical reserve is the highest point of the black line.<br>
     <b>Why the blue area is bigger than the teal one.</b> The tons balance: the night banks ${f0(RT(chgRT))} ton-h to deliver ${f0(RT(disRT))} ton-h, 8% more for
     round-trip loss. The electricity does not, because a ton costs a different amount at each end. Making ice on ${ICE_CHG_F} °F glycol costs
@@ -1102,20 +1143,26 @@ function renderYear(debounce){ if(debounce){clearTimeout(yrTimer); yrTimer=setTi
   $('w_tag').textContent=`facility demand, 8,760 h · the spikes are the mechanical cooling; the right axis reads them directly`;
   // ----- 3. with IceBrick -----
   const preChg=Array.from(I.fac,(v,i)=>(v-I.chgEl[i])/1000);
-  const dsX=[line('Facility demand · today',MWa(A.fac),'rgba(138,154,168,.55)',{borderWidth:1,tension:0,order:5}),
+  const pinkTop=Array.from(I.fac,(v,i)=>(v+(I.disRT[i]>0.5?Math.max(0,I.wpA[i]+I.lfA[i]):0))/1000);
+  const dsX=[line('Facility demand · today',MWa(A.fac),'rgba(138,154,168,.55)',{borderWidth:1,tension:0,order:5,fill:{target:3,above:'rgba(13,148,136,.28)',below:'transparent'}}),
     line('Without the ice plant',preChg,'transparent',{borderWidth:0,tension:0,tt:false}),
     area('Facility demand · with IceBrick',MWa(I.fac),c.ch,c.iceF,{fill:{target:1,above:c.iceF,below:'transparent'},borderWidth:1.2,tension:0,order:1}),
+    line('Efficiency gained',pinkTop,'transparent',{borderWidth:0,tension:0,tt:false,order:4,fill:{target:2,above:c.wpF,below:'transparent'}}),
     line('2025 peak · today',idx.map(()=>pkT),c.ink,{borderDash:[7,4],borderWidth:1.6,tension:0}),
     line('2025 peak · with IceBrick',idx.map(()=>pkI),c.ch,{borderDash:[7,4],borderWidth:1.6,tension:0})];
   const oX=yearX(rightAxis(withTT(baseOpts('X','MW electric · whole facility'),(ds,v,ctx)=>{const i=ctx.dataIndex;
-    if(ds.label==='Facility demand · with IceBrick'){let s=f2(v)+' MW'; if(I.disRT[i]>0.5)s+=` · IceBrick discharging ${f0(I.disRT[i])} RT`; if(I.chgRT[i]>0.5)s+=` · ice plant ${f0(I.chgRT[i])} RT, ${f2(I.chgEl[i]/1000)} MW`; return s;}
+    if(ds.label==='Facility demand · with IceBrick'){let s=f2(v)+' MW'; if(I.disRT[i]>0.5)s+=` · IceBrick discharging ${f0(I.disRT[i])} RT · displaced ${f2((I.dispA[i]-0.012*I.disRT[i]*TON_KW)/1000)} MW, work point ${f2(I.wpA[i]/1000)} MW, lift ${f2(I.lfA[i]/1000)} MW`; if(I.chgRT[i]>0.5)s+=` · ice plant ${f0(I.chgRT[i])} RT, ${f2(I.chgEl[i]/1000)} MW`; return s;}
     return f2(v)+' MW';})));
   const chX=mkChart('X','line',idx,dsX,oX,[{lb:'Facility demand · today',col:'rgba(138,154,168,.7)',i:0,kind:'line'},{lb:'Facility demand · with IceBrick',col:c.ch,i:2,kind:'line'},
-    {lb:'Ice plant charging',col:c.iceF,i:2},{lb:`2025 peak today · ${f2(pkT)} MW`,col:c.ink,i:3,kind:'dash'},{lb:`2025 peak with IceBrick · ${f2(pkI)} MW`,col:c.ch,i:4,kind:'dash'}],YLAB);
+    {lb:'Displaced by IceBrick',col:'rgba(13,148,136,.55)',i:0},{lb:'Efficiency gained · work point + lift',col:c.wpB,i:3},
+    {lb:'Ice plant charging',col:c.iceF,i:2},{lb:`2025 peak today · ${f2(pkT)} MW`,col:c.ink,i:4,kind:'dash'},{lb:`2025 peak with IceBrick · ${f2(pkI)} MW`,col:c.ch,i:5,kind:'dash'}],YLAB);
   if(chX){chX.$gap={hi:pkT,lo:pkI,text:'Unlocked IT capacity',sub:`${f2(freed)} MW in 2025 under the same connection`}; chX.update('none');}
   linkCharts(chW,chX);
   let chgPk=0; I.chgRT.forEach(v=>{if(v>chgPk)chgPk=v;});
+  let dS=0,wS=0,lS=0; for(let i=0;i<8760;i++) if(I.disRT[i]>0.5){dS+=I.dispA[i]-0.012*I.disRT[i]*TON_KW; wS+=I.wpA[i]; lS+=I.lfA[i];}
   $('x_tag').textContent=`facility demand, 8,760 h · ${f0(RT(S.stor))} ton-h IceBrick · charging plant up to ${f0(chgPk)} RT in 2025`;
+  $('x_note').innerHTML=`<b>In 2025 IceBrick's discharge saves ${f0((dS+wS+lS)/1000)} MWh:</b> <span style="color:var(--water)">${f0(dS/1000)} MWh displaced</span> (net of its pumps) and
+    <span style="color:var(--pink)">${f0((wS+lS)/1000)} MWh of efficiency</span> on the chillers that stay on (${f0(wS/1000)} MWh from the lighter work point, ${f0(lS/1000)} MWh from the shorter lift).`;
   $('yr_lead').innerHTML=`The design-day sections above size IceBrick for the hottest day in ${S.N} years. Here the same store runs through the measured
     2025 weather at ${HUBS[S.hub].name}, held to the lowest flat line 2025 itself allows. With <b>${f0(RT(S.stor))} ton-h</b> the 2025 peak falls from
     <b>${f2(pkT)} MW</b> to <b>${f2(pkI)} MW</b>, freeing <b>${f2(freed)} MW</b> of IT capacity (the design day frees ${f2(ddFreed)} MW with the same store).
@@ -1125,7 +1172,38 @@ function renderYear(debounce){ if(debounce){clearTimeout(yrTimer); yrTimer=setTi
 }
 
 // run ID for the lead record: which tool, site and water the visitor asked about
-function runCode(){return ['IBDD',S.hub,'RS'+S.RS,'CDU'+S.cdu,'IT'+S.IT,'N'+S.N].join('-');}
+// RUN CODE. Every input behind the results in one pasteable line:
+//   IBDD-v1-<hub>-RS<rack supply °C>-CDU<approach K>-IT<MW>-N<design-day window, years>-S<IceBrick ton-h | rec>
+// "Srec" means "the recommended size"; a number pins the store the visitor chose.
+function runCode(){return ['IBDD','v1',S.hub,'RS'+S.RS,'CDU'+S.cdu,'IT'+S.IT,'N'+S.N,'S'+(S.touched&&S.stor!=null?Math.round(RT(S.stor)):'rec')].join('-');}
+function parseCode(s){
+  s=(s||'').trim().replace(/\s+/g,''); const m=/^IBDD-(?:v1-)?([a-z]+)-RS([\d.]+)-CDU([\d.]+)-IT([\d.]+)-N(\d+)(?:-S(rec|\d+))?$/i.exec(s);
+  if(!m)return {err:'That does not look like a run code. It starts with IBDD- and is copied from the results.'};
+  const hub=m[1].toLowerCase(), RS=+m[2], cdu=+m[3], IT=+m[4], N=+m[5], st=m[6]||'rec';
+  if(!HUBS[hub])return {err:`Unknown site "${hub}" in the code.`};
+  if(!(RS>=18&&RS<=45))return {err:'Rack supply in the code must be between 18 and 45 °C.'};
+  if(!(cdu>=1&&cdu<=6))return {err:'CDU approach in the code must be between 1 and 6 K.'};
+  if(!(IT>=5&&IT<=500))return {err:'IT load in the code must be between 5 and 500 MW.'};
+  if(![10,20,50].includes(N))return {err:'Design-day window in the code must be 10, 20 or 50 years.'};
+  return {hub,RS:Math.round(RS*2)/2,cdu:Math.round(cdu*2)/2,IT:Math.round(IT/5)*5,N,stor:st.toLowerCase()==='rec'?null:(+st)*TON_KW};
+}
+function showCode(){const e=$('runcode'); if(e)e.textContent=runCode();}
+$('code_copy').addEventListener('click',()=>{const c=runCode(), msg=$('code_msg');
+  const done=ok=>{msg.textContent=ok?'Copied.':'Select the code and copy it (Ctrl+C / ⌘C).'; if(!ok){const rg=document.createRange();rg.selectNodeContents($('runcode'));const sl=getSelection();sl.removeAllRanges();sl.addRange(rg);}};
+  try{navigator.clipboard.writeText(c).then(()=>done(true),()=>done(false));}catch(e){done(false);}});
+function applyCode(){const p=parseCode($('code_in').value), err=$('code_err');
+  if(p.err){err.style.color='var(--chiller)'; err.textContent=p.err; return;}
+  err.textContent='';
+  S.hub=p.hub; S.RS=p.RS; S.cdu=p.cdu; S.IT=p.IT; S.N=p.N;
+  if(p.stor!=null){S.stor=p.stor; S.touched=true;} else S.touched=false;
+  $('i_rs').value=S.RS; $('i_cdu').value=S.cdu; $('i_it').value=S.IT;
+  [...$('nsel').children].forEach(x=>x.classList.toggle('on',+x.dataset.n===S.N));
+  syncHub(); syncLoop(); $('q2').hidden=false;
+  openLeadGate(()=>{$('report').hidden=false; run(true);
+    setTimeout(()=>$('report').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'}),60);});
+}
+$('code_go').addEventListener('click',applyCode);
+$('code_in').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();applyCode();}});
 // ============================================================================
 //  LEAD GATE — company / title / email, once per browser, before the IceBrick
 //  comparison and the PDF unlock. Submission goes to a Google Apps Script Web
