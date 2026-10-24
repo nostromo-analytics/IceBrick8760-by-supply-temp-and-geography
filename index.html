@@ -109,6 +109,7 @@ input[type=range]:focus-visible{outline:2px solid var(--water);outline-offset:4p
 .btn.sm{padding:5px 11px;font-size:12px;border-radius:7px;font-family:var(--mono)}
 /* report */
 .sec{margin-top:34px}
+.sechead #opt_tog{margin-left:auto}
 .sechead{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:10px}
 .step{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--water);background:var(--water-dim);padding:3px 9px;border-radius:5px}
 .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:14px}
@@ -224,8 +225,8 @@ table.tb td.b{color:var(--water);font-weight:600}
         <div class="hint">ASHRAE (American Society of Heating, Refrigerating and Air-Conditioning Engineers) liquid classes W27 to W45 sit inside this range.</div>
       </div>
       <div class="sl">
-        <label for="i_cdu">CDU approach <span class="val" id="v_cdu">4.0 K</span></label>
-        <input type="range" id="i_cdu" min="1" max="6" step="0.5" value="4">
+        <label for="i_cdu">CDU approach <span class="val" id="v_cdu">5.0 K</span></label>
+        <input type="range" id="i_cdu" min="1" max="6" step="0.5" value="5">
         <div class="hint">Facility water runs this much colder than the rack supply.</div>
       </div>
       <div class="sl">
@@ -316,7 +317,9 @@ table.tb td.b{color:var(--water);font-weight:600}
 
     <!-- E: optimisation -->
     <div class="sec">
-      <div class="sechead"><span class="step">Optimum</span><h2>How big IceBrick should be</h2></div>
+      <div class="sechead"><span class="step">Optimum</span><h2>How big IceBrick should be</h2>
+        <button class="btn sm" id="opt_tog" aria-expanded="false" aria-controls="opt_body">Show ▾</button></div>
+      <div id="opt_body" hidden>
       <p class="lead" id="e_lead"></p>
       <div class="panel">
         <div class="chead"><div><h3 class="ctitle">Electrical reserve against IceBrick size</h3><div class="ctag" id="e_tag"></div></div>
@@ -327,19 +330,13 @@ table.tb td.b{color:var(--water);font-weight:600}
       </div>
       <div class="tbw"><table class="tb" id="tbl"></table></div>
       <p class="note" id="e_note"></p>
+      </div>
     </div>
 
     <!-- F: the year -->
     <div class="sec">
       <div class="sechead"><span class="step">The year</span><h2>Your 2025, hour by hour</h2></div>
       <p class="lead" id="yr_lead"></p>
-      <div class="panel">
-        <div class="chead"><div><h3 class="ctitle">IT capacity freed against IceBrick size · design day and 2025</h3><div class="ctag" id="z_tag"></div></div>
-          <button class="btn sm" data-reset="Z">Reset zoom</button></div>
-        <div class="cbox sm"><canvas id="cZ"></canvas></div>
-        <div class="legend" id="lgZ"></div>
-        <div class="rng" id="rgZ"></div>
-      </div>
       <div class="panel">
         <div class="chead"><div><h3 class="ctitle">Load profile · facility power, 8,760 h</h3><div class="ctag" id="y_tag"></div></div>
           <button class="btn sm" data-reset="Y">Reset zoom</button></div>
@@ -606,7 +603,7 @@ const HUBS={
 };
 const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const $=id=>document.getElementById(id);
-const S={hub:null,RS:30,cdu:4,IT:100,N:20,stor:0,touched:false,units:'metric'};
+const S={hub:null,RS:30,cdu:5,IT:100,N:20,stor:0,touched:false,units:'metric'};
 let B=null,SW=null,R=null,BLK=null;
 
 // ---------- formatting ----------
@@ -1028,25 +1025,7 @@ function renderYear(debounce){ if(debounce){clearTimeout(yrTimer); yrTimer=setTi
   const MWa=x=>Array.from(x,v=>v/1000), idx=[...Array(8760).keys()];
   const fixMW=A.fix/1000, pkT=A.pk/1000, pkI=I.pk/1000, freed=pkT-pkI;
   const ddFreed=(B.elPk-R.resv)/1000, best=YS.best, isBest=Math.abs(S.stor-best)<TON_KW*60;
-  // ----- 0. freed capacity against store size (linear ton-h axis) -----
-  const Ssel=S.stor, Xmax=Math.max(YS.Smax,SW.Smax)*1.2, Sg=[...Array(25).keys()].map(k=>Xmax*k/24);
-  const yAt=s=>{const Q=YS.pts; if(s>=Q[Q.length-1].S)return Q[Q.length-1].freed; let k=0; while(k<Q.length-2&&Q[k+1].S<s)k++; const a0=Q[k],a1=Q[k+1]; return a0.freed+(a1.freed-a0.freed)*(s-a0.S)/(a1.S-a0.S);};
-  const P=Sg.map(s=>({S:s,freed:yAt(s)})), xs=P.map(p=>RT(p.S));
-  const ddF=P.map(p=>(B.elPk-withIce(B,p.S).resv)/1000);
-  const curY=Math.max(0,YS.maxEl-yc.C)/1000, curD=ddFreed;
-  const dsZ=[line('2025 · freed IT capacity',P.map((p,i)=>({x:xs[i],y:p.freed/1000})),c.ch,{borderWidth:2.4,tension:.2}),
-             line('Design day · freed IT capacity',P.map((p,i)=>({x:xs[i],y:ddF[i]})),c.water,{borderWidth:2.4,tension:.2}),
-             {type:'scatter',label:'Your size · 2025',data:[{x:RT(Ssel),y:curY}],backgroundColor:c.ch,borderColor:c.panel,borderWidth:2,pointRadius:7,yAxisID:'y'},
-             {type:'scatter',label:'Your size · design day',data:[{x:RT(Ssel),y:curD}],backgroundColor:c.water,borderColor:c.panel,borderWidth:2,pointRadius:7,yAxisID:'y'}];
-  const oZ=withTT(baseOpts('Z','MW of IT freed'),(ds,v)=>f2(v.y!=null?v.y:v)+' MW');
-  oZ.plugins.tooltip.callbacks.label=ctx=>ctx.dataset.label+': '+f2(ctx.parsed.y)+' MW';
-  oZ.plugins.tooltip.callbacks.title=its=>its.length?f0(its[0].parsed.x)+' ton-h':'';
-  oZ.interaction={mode:'nearest',axis:'x',intersect:false};
-  oZ.scales.x={type:'linear',min:0,max:xs[xs.length-1],grid:{display:false},title:{display:true,text:'IceBrick storage, ton-h',color:c.tick,font:{size:11}},
-    ticks:{color:c.tick,font:{family:"'IBM Plex Mono',monospace",size:11},callback:v=>f0(v)}};
-  mkChart('Z','line',undefined,dsZ,oZ,[{lb:'2025 (measured weather)',col:c.ch,i:0,kind:'line'},{lb:`Design day (${ddStr(BLK.date)})`,col:c.water,i:1,kind:'line'},
-    {lb:'Your current size',col:c.ink,i:[2,3]}],xs.map(x=>f0(x)+' ton-h'),xs);
-  $('z_tag').textContent=`dots = your current size, ${f0(RT(Ssel))} ton-h: ${f2(curY)} MW freed in 2025, ${f2(curD)} MW on the design day`;
+  // (the freed-capacity-against-size chart was removed at the user's request)
   $('m_y25').textContent=`Best for 2025 · ${f0(RT(best))} ton-h`; $('m_y25').classList.toggle('on',isBest);
   // ----- 1. baseline load profile -----
   const pkPt=idx.map(i=>i===A.pkI?pkT:null);
@@ -1141,7 +1120,7 @@ function leadSubmit(rec){
   body.append('title',rec.title);
   body.append('email',rec.email);
   if(rec.runid) body.append('runid',rec.runid);
-  try{fetch(LEAD_ENDPOINT,{method:'POST',mode:'no-cors',body:body});}catch(e){}
+  try{fetch(LEAD_ENDPOINT,{method:'POST',mode:'no-cors',body:body}).catch(()=>{});}catch(e){}
 }
 function openLeadGate(onSuccess){
   // ALREADY IDENTIFIED. No second form — but every configuration this person looks at is still its
@@ -1185,6 +1164,11 @@ function openLeadGate(onSuccess){
   ovl.addEventListener('keydown',key);
   setTimeout(()=>cEl.focus(),50);
 }
+
+// the optimum section starts collapsed; the chart is redrawn at its real width when opened
+$('opt_tog').addEventListener('click',()=>{const b=$('opt_body'), open=b.hidden; b.hidden=!open;
+  $('opt_tog').textContent=open?'Hide ▴':'Show ▾'; $('opt_tog').setAttribute('aria-expanded',String(open));
+  if(open&&CH.E){CH.E.resize(); CH.E.update('none');}});
 
 </script>
 
