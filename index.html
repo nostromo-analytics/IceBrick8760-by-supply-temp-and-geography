@@ -183,6 +183,7 @@ table.tb td.b{color:var(--water);font-weight:600}
 .rtbig{font-family:var(--mono);font-weight:600;font-size:30px;line-height:1.15;margin-top:4px;font-variant-numeric:tabular-nums}
 .rtbig small{font-size:14px;color:var(--muted);font-weight:400;margin-left:4px}
 .rtbig.ok{color:var(--water)}
+.rtbig.ice{color:var(--ice);margin-top:12px} .rtsub.ice{color:var(--ice)}
 .rtsub{font-family:var(--mono);font-size:11.5px;color:var(--faint);margin-top:6px;line-height:1.5}
 .rtsub b{color:var(--text);font-weight:600}
 .rtbars{display:flex;flex-direction:column;gap:8px;margin-top:16px}
@@ -193,7 +194,9 @@ table.tb td.b{color:var(--water);font-weight:600}
 .rtseg.ch{background:var(--chiller)} .rtseg.ib{background:var(--ice)}
 .codebar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
 #runcode{font-family:var(--mono);font-size:13px;color:var(--water);background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:5px 10px;user-select:all;word-break:break-all}
-.codein{padding:14px 18px}
+.codein{margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
+.codelbl{font-family:var(--disp);font-size:15px;font-weight:600;color:var(--text)}
+.codehelp{font-size:12.5px;color:var(--muted);margin:4px 0 0;max-width:760px;line-height:1.55}
 .codeinrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
 .codeinrow .txtin{flex:1;min-width:0;font-family:var(--mono);font-size:13px}
 @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
@@ -219,15 +222,6 @@ table.tb td.b{color:var(--water);font-weight:600}
     electrical capacity you have to hold in reserve for it. Then we put an <b>IceBrick</b> thermal store in the loop, charging
     at night and discharging through the day, and show what that reserve becomes.</p>
 
-  <div class="card codein">
-    <label for="code_in" class="ctag">Have a run code?</label>
-    <div class="codeinrow">
-      <input type="text" id="code_in" class="txtin" spellcheck="false" autocomplete="off" placeholder="IBDD-v1-dfw-RS40-CDU5-IT100-N20-S73073">
-      <button class="btn pri" id="code_go">Run this code</button>
-    </div>
-    <div class="ovlhint" id="code_err"></div>
-  </div>
-
   <!-- Q1 -->
   <div class="card" id="q1">
     <div class="qnum">Question 1 of 2</div>
@@ -239,6 +233,17 @@ table.tb td.b{color:var(--water);font-weight:600}
       <div class="mapcap"><b id="map_name">Choose a hub</b><span id="map_sub"></span></div>
     </div>
     <div class="chips" id="hubchips"></div>
+    <div class="codein">
+      <label for="code_in" class="codelbl">Already have a run code?</label>
+      <p class="codehelp">Only if you already got a code from an earlier run of this simulator, or someone shared one with you. Paste it here
+        to repeat that exact simulation, with the same site, supply temperature, CDU approach, IT load and IceBrick size. If you don't have a code,
+        skip this and pick a site on the map above.</p>
+      <div class="codeinrow">
+        <input type="text" id="code_in" class="txtin" spellcheck="false" autocomplete="off" aria-describedby="code_err">
+        <button class="btn" id="code_go">Run this code</button>
+      </div>
+      <div class="ovlhint" id="code_err"></div>
+    </div>
   </div>
 
   <!-- Q2 -->
@@ -340,7 +345,10 @@ table.tb td.b{color:var(--water);font-weight:600}
           <div class="ctag">tons of refrigeration (RT) the site has to install for this design day</div></div></div>
         <div class="rtgrid">
           <div class="rtcol"><div class="rtlbl">Without IceBrick</div><div class="rtbig" id="rt_b">—</div><div class="rtsub">facility chillers only</div></div>
-          <div class="rtcol"><div class="rtlbl">With IceBrick</div><div class="rtbig ok" id="rt_a">—</div><div class="rtsub" id="rt_a_s"></div></div>
+          <div class="rtcol"><div class="rtlbl">With IceBrick</div>
+            <div class="rtbig ok" id="rt_a">—</div><div class="rtsub">customer side · facility chillers</div>
+            <div class="rtbig ice" id="rt_n">—</div><div class="rtsub ice">Nostromo side · IceBrick ice builders</div>
+            <div class="rtsub" id="rt_a_s"></div></div>
           <div class="rtcol"><div class="rtlbl">Change in total installed</div><div class="rtbig" id="rt_d">—</div><div class="rtsub" id="rt_d_s"></div></div>
         </div>
         <div class="rtbars">
@@ -923,8 +931,9 @@ function renderIce(fromShare){
   // installed refrigeration, before and after
   {const before=RT(B.pk), chil=RT(R.ok?R.cap:B.pk), ice=R.ok?RT(R.chgNP):0, after=chil+ice, d=after-before;
    $('rt_b').innerHTML=f0(before)+'<small>RT</small>';
-   $('rt_a').innerHTML=f0(after)+'<small>RT</small>';
-   $('rt_a_s').innerHTML=`<b>${f0(chil)} RT</b> facility chillers + <b>${f0(ice)} RT</b> Nostromo IceBrick ice builders`;
+   $('rt_a').innerHTML=f0(chil)+'<small>RT</small>';
+   $('rt_n').innerHTML=f0(ice)+'<small>RT</small>';
+   $('rt_a_s').innerHTML=`<b>${f0(after)} RT</b> installed in total`;
    $('rt_d').innerHTML=(d<=0?'−':'+')+f0(Math.abs(d))+'<small>RT</small>';
    $('rt_d').className='rtbig'+(d<=0?' ok':'');
    $('rt_d_s').innerHTML=`${d<=0?'less':'more'} refrigeration installed in total (${(d<=0?'−':'+')+f1(Math.abs(100*d/before))}%) · facility chillers ${chil<before?'−':'+'}${f0(Math.abs(before-chil))} RT`;
