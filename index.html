@@ -175,6 +175,21 @@ table.tb td.b{color:var(--water);font-weight:600}
 .txtin:focus{border-color:var(--water)}
 .ovlhint{font-size:11.5px;color:var(--faint);margin-top:8px;min-height:17px;font-family:var(--mono)}
 .ovlrow{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
+.rtbox{border-color:var(--water)}
+.rtgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:12px}
+@media(max-width:700px){.rtgrid{grid-template-columns:1fr}}
+.rtlbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.rtbig{font-family:var(--mono);font-weight:600;font-size:30px;line-height:1.15;margin-top:4px;font-variant-numeric:tabular-nums}
+.rtbig small{font-size:14px;color:var(--muted);font-weight:400;margin-left:4px}
+.rtbig.ok{color:var(--water)}
+.rtsub{font-family:var(--mono);font-size:11.5px;color:var(--faint);margin-top:6px;line-height:1.5}
+.rtsub b{color:var(--text);font-weight:600}
+.rtbars{display:flex;flex-direction:column;gap:8px;margin-top:16px}
+.rtrow{display:grid;grid-template-columns:64px minmax(0,1fr);gap:10px;align-items:center}
+.rtname{font-size:12px;color:var(--muted)}
+.rttrack{display:flex;height:26px;background:var(--panel2);border-radius:6px;overflow:hidden}
+.rtseg{height:100%;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11.5px;color:#fff;white-space:nowrap;overflow:hidden;transition:width .2s}
+.rtseg.ch{background:var(--chiller)} .rtseg.ib{background:var(--ice)}
 @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
 @media(max-width:600px){.lock{font-size:23px}h1{font-size:24px}.cbox{height:280px}}
 </style>
@@ -299,11 +314,26 @@ table.tb td.b{color:var(--water);font-weight:600}
         </div>
         <div class="callout" id="c_call"></div>
       </div>
+      <div class="panel rtbox">
+        <div class="chead"><div><h3 class="ctitle">Installed refrigeration · before and after IceBrick</h3>
+          <div class="ctag">tons of refrigeration (RT) the site has to install for this design day</div></div></div>
+        <div class="rtgrid">
+          <div class="rtcol"><div class="rtlbl">Without IceBrick</div><div class="rtbig" id="rt_b">—</div><div class="rtsub">facility chillers only</div></div>
+          <div class="rtcol"><div class="rtlbl">With IceBrick</div><div class="rtbig ok" id="rt_a">—</div><div class="rtsub" id="rt_a_s"></div></div>
+          <div class="rtcol"><div class="rtlbl">Change in total installed</div><div class="rtbig" id="rt_d">—</div><div class="rtsub" id="rt_d_s"></div></div>
+        </div>
+        <div class="rtbars">
+          <div class="rtrow"><span class="rtname">Without</span><div class="rttrack"><div class="rtseg ch" id="rb_b"></div></div></div>
+          <div class="rtrow"><span class="rtname">With</span><div class="rttrack"><div class="rtseg ch" id="rb_ac"></div><div class="rtseg ib" id="rb_ai"></div></div></div>
+        </div>
+        <div class="legend"><span><i class="sw" style="background:var(--chiller)"></i>Facility chillers (YORK air-cooled)</span>
+          <span><i class="sw" style="background:var(--ice)"></i>Nostromo IceBrick ice builders (charging chillers, 24 °F glycol)</span></div>
+      </div>
       <div class="kpis">
         <div class="kpi hl"><div class="kl">Electrical capacity to reserve · with IceBrick</div><div class="kn" id="k_resv">—</div><div class="ks" id="k_resv_s"></div></div>
         <div class="kpi hl"><div class="kl">Chiller capacity to install · with IceBrick</div><div class="kn" id="k_cap">—</div><div class="ks" id="k_cap_s"></div></div>
         <div class="kpi"><div class="kl">IceBrick storage</div><div class="kn" id="k_S">—</div><div class="ks" id="k_S_s"></div></div>
-        <div class="kpi"><div class="kl">IceBrick charging plant</div><div class="kn" id="k_chg">—</div><div class="ks" id="k_chg_s"></div></div>
+        <div class="kpi"><div class="kl">IceBrick ice builders · Nostromo</div><div class="kn" id="k_chg">—</div><div class="ks" id="k_chg_s"></div></div>
       </div>
       <div class="panel">
         <div class="chead"><div><h3 class="ctitle">Electrical draw for cooling · before and with IceBrick</h3><div class="ctag" id="c_tag"></div></div>
@@ -855,6 +885,18 @@ function renderIce(fromShare){
       The cooling electrical reserve falls from <b>${MW(base)}</b> to <b>${MW(R.resv)}</b>, handing <b>${MW(freed)}</b> back to IT under the same connection.
       ${R.cap<B.pk-TON_KW*10?`Installed chillers drop from <b>${thMain(B.pk)}</b> to <b>${thMain(R.cap)}</b>.`:`The chillers stay at <b>${thMain(B.pk)}</b>: they still carry the full load through the warm night before.`}`;
   }
+  // installed refrigeration, before and after
+  {const before=RT(B.pk), chil=RT(R.ok?R.cap:B.pk), ice=R.ok?RT(R.chgNP):0, after=chil+ice, d=after-before;
+   $('rt_b').innerHTML=f0(before)+'<small>RT</small>';
+   $('rt_a').innerHTML=f0(after)+'<small>RT</small>';
+   $('rt_a_s').innerHTML=`<b>${f0(chil)} RT</b> facility chillers + <b>${f0(ice)} RT</b> Nostromo IceBrick ice builders`;
+   $('rt_d').innerHTML=(d<=0?'−':'+')+f0(Math.abs(d))+'<small>RT</small>';
+   $('rt_d').className='rtbig'+(d<=0?' ok':'');
+   $('rt_d_s').innerHTML=`${d<=0?'less':'more'} refrigeration installed in total (${(d<=0?'−':'+')+f1(Math.abs(100*d/before))}%) · facility chillers ${chil<before?'−':'+'}${f0(Math.abs(before-chil))} RT`;
+   const mx=Math.max(before,after), w=v=>(100*v/mx).toFixed(2)+'%';
+   $('rb_b').style.width=w(before); $('rb_b').textContent=f0(before)+' RT';
+   $('rb_ac').style.width=w(chil); $('rb_ac').textContent=f0(chil)+' RT';
+   $('rb_ai').style.width=w(ice); $('rb_ai').textContent=ice>0?f0(ice)+' RT':'';}
   // KPIs
   const pct=base>0?100*(R.resv-base)/base:0;
   $('k_resv').parentElement.className='kpi hl';
@@ -972,11 +1014,11 @@ function renderOpt(fromShare){
   // table: half, recommended, the floor, and the current setting
   const rows=[...new Set([opt.S*0.5,opt.S,SW.Smax,R.Sreq].map(v=>Math.round(RT(v))))].filter(v=>v>0).sort((x,y)=>x-y);
   const tr=t=>{const s=t*TON_KW, r=withIce(B,s), tag=(Math.abs(t-RT(opt.S))<1?' · recommended':'')+(Math.abs(t-RT(R.Sreq))<1?' · current':'')+(Math.abs(t-RT(SW.Smax))<1&&Math.abs(t-RT(opt.S))>=1?' · lowest reserve':'');
-    return `<tr><td>${f0(t)}${tag}</td><td>${f0(RT(r.chgNP))}</td><td>${f0(RT(r.cap))}</td>`+
+    return `<tr><td>${f0(t)}${tag}</td><td>${f0(RT(r.cap))}</td><td>${f0(RT(r.chgNP))}</td><td class="b">${f0(RT(r.cap+r.chgNP))}</td>`+
       `<td class="${r.resv<base?'b':''}">${f2(r.resv/1000)}</td><td>${r.resv<base?f2((base-r.resv)/1000):'—'}</td><td>$${f1(t*1000/1e6)}M / $${f1(t*600/1e6)}M</td></tr>`;};
-  $('tbl').innerHTML=`<thead><tr><th>IceBrick storage, ton-h</th><th>Charging plant, RT</th><th>Chillers installed, RT</th>`+
+  $('tbl').innerHTML=`<thead><tr><th>IceBrick storage, ton-h</th><th>Facility chillers, RT</th><th>Ice builders, RT</th><th>Total installed, RT</th>`+
     `<th>Cooling reserve, MW</th><th>MW back to IT</th><th>Storage cost · before / after ITC</th></tr></thead><tbody>`+
-    `<tr><td>No IceBrick</td><td>—</td><td>${f0(RT(B.pk))}</td><td>${f2(base/1000)}</td><td>—</td><td>—</td></tr>`+rows.map(tr).join('')+'</tbody>';
+    `<tr><td>No IceBrick</td><td>${f0(RT(B.pk))}</td><td>—</td><td>${f0(RT(B.pk))}</td><td>${f2(base/1000)}</td><td>—</td><td>—</td></tr>`+rows.map(tr).join('')+'</tbody>';
   $('e_note').innerHTML=`<b>Reading the table.</b> "Cooling reserve" is the chillers plus the ice plant and the IceBrick pumps at the worst hour of the
     charge-and-discharge cycle, the electrical capacity mechanical cooling needs on this design day. Dry-cooler fans and loop pumps (${MW(B.fans+B.pumps)})
     are the same in every row and left out. Storage cost uses the planning rate of $1,000 per ton-hour, $600 after the ITC, which already includes the
